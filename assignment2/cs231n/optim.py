@@ -65,7 +65,9 @@ def sgd_momentum(w, dw, config=None):
     # TODO: Implement the momentum update formula. Store the updated value in #
     # the next_w variable. You should also use and update the velocity v.     #
     ###########################################################################
-    pass
+    #v = config['momentum'] * v + (1-config['momentum']) * dw
+    v = config['momentum'] * v - config['learning_rate'] * dw
+    next_w = w + v
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -99,7 +101,10 @@ def rmsprop(x, dx, config=None):
     # in the next_x variable. Don't forget to update cache value stored in    #
     # config['cache'].                                                        #
     ###########################################################################
-    pass
+    cache = config['cache']
+    cache = config['decay_rate'] * cache + (1-config['decay_rate']) * dx * dx
+    config['cache'] = cache
+    next_x = x - config['learning_rate'] * dx / (np.sqrt(cache) + config['epsilon'])
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -136,7 +141,16 @@ def adam(x, dx, config=None):
     # the next_x variable. Don't forget to update the m, v, and t variables   #
     # stored in config.                                                       #
     ###########################################################################
-    pass
+    first_moment = config['m']
+    second_moment = config['v']
+    first_moment = config['beta1'] * first_moment + (1-config['beta1']) * dx
+    second_moment = config['beta2'] * second_moment + (1 - config['beta2']) * dx * dx
+    first_unbiased = first_moment / (1-config['beta1']**config['t'])
+    second_unbiased = second_moment / (1 - config['beta2'] ** config['t'])
+    next_x = x - config['learning_rate'] * first_unbiased / (np.sqrt(second_unbiased) + config['epsilon'])
+    config['t'] += 1
+    config['m']= first_moment
+    config['v'] = second_moment
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
