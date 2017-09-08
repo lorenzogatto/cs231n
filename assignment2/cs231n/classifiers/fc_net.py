@@ -190,6 +190,9 @@ class FullyConnectedNet(object):
                 out_dim = hidden_dims[i]
             self.params['W' + number] = np.random.randn(in_dim, out_dim) * weight_scale
             self.params['b' + number] = np.zeros(out_dim)
+            if self.use_batchnorm and i != self.num_layers - 1:
+                self.params["gamma"+number] = np.ones(out_dim)
+                self.params["beta" + number] = np.zeros(out_dim)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -254,9 +257,16 @@ class FullyConnectedNet(object):
             W = self.params['W' + number]
             b = self.params['b' + number]
             if i != self.num_layers - 1:
-                L, cache = affine_relu_forward(L, W, b)
+                if self.use_batchnorm:
+                    gamma = self.params['gamma' + number]
+                    beta = self.params["beta" + number]
+                    L, cache = affine_batch_relu_forward(L, W, b, gamma, beta, self.bn_params[i])
+                else:
+                    L, cache = affine_relu_forward(L, W, b)
             else:
                 L, cache = affine_forward(L, W, b)
+            if(self.use_dropout):
+                L, caches['dropout' + number] = dropout_forward(L, self.dropout_param)
             caches['L' + number] = cache
         scores = L
         ############################################################################
@@ -285,10 +295,18 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers - 1, -1, -1):
             number = str(i+1)
             cache = caches['L' + number]
+            if (self.use_dropout):
+                drop_cache = caches['dropout' + number]
+                dL = dropout_backward(dL, drop_cache)
             if i == self.num_layers - 1:
                 dL, dw, db = affine_backward(dL, cache)
             else:
-                dL, dw, db = affine_relu_backward(dL, cache)
+                if self.use_batchnorm:
+                    dL, dw, db, dgamma, dbeta = affine_batch_relu_backward(dL, cache)
+                    grads['gamma' + number] = dgamma
+                    grads['beta' + number] = dbeta
+                else:
+                    dL, dw, db = affine_relu_backward(dL, cache)
             W = self.params['W' + number]
             grads['W' + number] = dw + self.reg * W
             grads['b' + number] = db

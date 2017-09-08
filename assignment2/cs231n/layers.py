@@ -181,13 +181,16 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         sample_mean = np.mean(x, axis=0)
         sample_var = np.var(x, axis=0)
-        out = x
+        out = x.copy()
         out -= sample_mean
-        den = 1.0/np.sqrt(sample_var+eps)
+        den = 1.0 / np.sqrt(sample_var + eps)
         out *= den
-        cache = (out.copy(), gamma, den, sample_mean, N, eps, x)
-        out *= gamma
+        temp1 = out
+        out = out *  gamma
         out += beta
+
+        cache = (temp1, gamma, den, eps, x)
+
 
         running_mean = momentum * running_mean + (1 - momentum) * sample_mean
         running_var = momentum * running_var + (1 - momentum) * sample_var
@@ -243,7 +246,11 @@ def batchnorm_backward(dout, cache):
     # TODO: Implement the backward pass for batch normalization. Store the    #
     # results in the dx, dgamma, and dbeta variables.                         #
     ###########################################################################
-    temp1, gamma, inverse_variance, sample_mean, N, eps, x = cache
+    temp1, gamma, inverse_variance, eps, x = cache
+    #(temp1, gamma, xmu, inverse_variance, sqrtvar, sample_var, eps, x) = cache
+    #cache = (out.copy(), gamma, den, sample_mean, eps, x)
+    N = temp1.shape[0]
+
     dbeta = np.sum(dout, axis=0)
     dgamma = np.sum(temp1 * dout, axis=0)
     #dgamma = np.sum(gamma*dout*dout, axis=0)
@@ -257,23 +264,11 @@ def batchnorm_backward(dout, cache):
     dxmu1 = dxhat * inverse_variance
     dsqrtvar = dInvStd * (-1.0/(sample_var+eps))
     dVariance = dsqrtvar *0.5/np.sqrt(sample_var+eps)
-
-    dsq = 1. / N * np.ones((N, x.shape[1])) * dVariance
-    dxmu2 = 2 * xmu * dsq
-    dx1 = (dxmu1 + dxmu2)
-    dmu = -1 * np.sum(dxmu1 + dxmu2, axis=0)
-
-    # step1
-    dx2 = 1. / N * np.ones((N, x.shape[1])) * dmu
-
-    # step0
-    dx = dx1 + dx2
     dV2 = dVariance / N
-    xZeroMean = x - sample_mean
-    dExp2 = dV2 * xZeroMean * 2
+    dExp2 = dV2 * xmu * 2
 
     dSampleMean = np.sum(dExp2, axis=0) + np.sum(dxmu1, axis=0)
-    #dx = dxmu1 + dExp2 - dSampleMean/N
+    dx = dxmu1 + dExp2 - dSampleMean/N
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -342,7 +337,10 @@ def dropout_forward(x, dropout_param):
         # TODO: Implement training phase forward pass for inverted dropout.   #
         # Store the dropout mask in the mask variable.                        #
         #######################################################################
-        pass
+        mask = np.random.rand(x.shape[0], x.shape[1]) > p
+        scale = 1.0/(1-p)
+        out = x * mask * scale
+
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -350,7 +348,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # TODO: Implement the test phase forward pass for inverted dropout.   #
         #######################################################################
-        pass
+        out = x
         #######################################################################
         #                            END OF YOUR CODE                         #
         #######################################################################
@@ -377,7 +375,9 @@ def dropout_backward(dout, cache):
         #######################################################################
         # TODO: Implement training phase backward pass for inverted dropout   #
         #######################################################################
-        pass
+        p = dropout_param['p']
+        scale = 1.0/(1-p)
+        dx = dout * mask * scale
         #######################################################################
         #                          END OF YOUR CODE                           #
         #######################################################################
